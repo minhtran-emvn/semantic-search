@@ -14,28 +14,40 @@ function AudioCard({ result }) {
     : `${API_BASE_URL}${result.audio_url}`;
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-800/80 p-5 shadow-lg transition hover:border-slate-500">
-      <div className="flex items-start justify-between gap-4">
-        <h3 className="text-base font-semibold text-slate-100">
-          {result.filename}
-        </h3>
-        <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-200">
-          {similarityPercentage}%
-        </span>
-      </div>
-      <div className="mt-4">
-        <audio
-          controls
-          preload="metadata"
-          onError={() => setPlaybackError(true)}
-          className="w-full"
-        >
-          <source src={sourceUrl} />
-          Your browser does not support the audio element.
-        </audio>
+    <div className="px-5 py-4 transition duration-150 hover:bg-bg-200/60">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
+        <div className="flex items-center justify-between gap-4 md:w-[45%] md:flex-col md:items-start md:gap-2">
+          <div className="min-w-0">
+            <h3 className="font-large-bold text-text-100 truncate">
+              {result.filename}
+            </h3>
+            <p className="mt-1 font-small-bold uppercase tracking-[0.18em] text-text-400">
+              Audio Clip
+            </p>
+          </div>
+          <span className="rounded-full bg-bg-200 px-3 py-1 text-[0.7rem] font-semibold text-text-300 md:hidden">
+            {similarityPercentage}%
+          </span>
+        </div>
+        <div className="hidden md:flex md:w-[15%] md:justify-end">
+          <span className="rounded-full bg-bg-200 px-3 py-1 text-[0.7rem] font-semibold text-text-300">
+            {similarityPercentage}%
+          </span>
+        </div>
+        <div className="md:flex-1">
+          <audio
+            controls
+            preload="metadata"
+            onError={() => setPlaybackError(true)}
+            className="w-full"
+          >
+            <source src={sourceUrl} />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
       </div>
       {playbackError && (
-        <p className="mt-3 text-sm text-red-300">
+        <p className="mt-2 font-base text-danger-100">
           Playback failed. Please check the audio file.
         </p>
       )}
