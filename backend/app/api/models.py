@@ -14,7 +14,7 @@ class SearchRequest(BaseModel):
 
     Attributes:
         query: Natural language search query (1-500 characters, ~77 tokens max)
-        top_k: Number of top results to return (1-100, default 20)
+        top_k: Number of top results to return (1-100, default 5)
     """
     query: str = Field(
         ...,
@@ -23,7 +23,7 @@ class SearchRequest(BaseModel):
         description="Natural language search query"
     )
     top_k: int = Field(
-        default=20,
+        default=5,
         ge=1,
         le=100,
         description="Number of top results to return"

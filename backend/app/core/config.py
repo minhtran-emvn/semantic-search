@@ -57,13 +57,13 @@ class Settings(BaseSettings):
     )
 
     CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
+        default=["http://localhost:3000", "http://localhost:8000", "http://localhost:5173"],
         description="Allowed CORS origins for API requests"
     )
 
     # Search configuration
     DEFAULT_TOP_K: int = Field(
-        default=10,
+        default=5,
         description="Default number of search results to return",
         ge=1
     )

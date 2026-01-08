@@ -311,6 +311,18 @@ class SearchService:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+        if self.index.ntotal == 0:
+            logger.warning("FAISS index is empty; returning no results")
+            return []
+
+        if k > self.index.ntotal:
+            logger.info(
+                "Requested k=%d exceeds index size=%d; reducing k",
+                k,
+                self.index.ntotal,
+            )
+            k = self.index.ntotal
+
         logger.info(f"Performing search with k={k}")
 
         # Normalize query embedding to unit length for cosine similarity
@@ -349,9 +361,13 @@ class SearchService:
             # Assuming files will be served from /audio/ endpoint
             audio_url = f"/audio/{filename}"
 
+            # Convert cosine similarity [-1, 1] to [0, 1] range for API contract.
+            similarity = (float(distance) + 1.0) / 2.0
+            similarity = max(0.0, min(1.0, similarity))
+
             result = SearchResult(
                 filename=filename,
-                similarity=float(distance),  # Convert numpy float to Python float
+                similarity=similarity,
                 audio_url=audio_url
             )
             results.append(result)
