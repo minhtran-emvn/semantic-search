@@ -23,12 +23,12 @@ function SearchBar({ onSearch, isLoading }) {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Describe the sound you need..."
-        className="flex-1 rounded-full border border-slate-300 bg-white px-6 py-4 text-base text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        className="flex-1 rounded-[0.625rem] border border-border-300/15 bg-bg-000 px-5 py-3 font-base text-text-100 shadow-card focus:border-accent-secondary-100/40 focus:outline-none focus:ring-2 focus:ring-accent-secondary-100/20 placeholder:text-text-400 disabled:bg-bg-100 disabled:text-text-400"
         disabled={isLoading}
       />
       <button
         type="submit"
-        className="rounded-full bg-blue-600 px-6 py-4 text-base font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-[0.625rem] bg-[#d97757] px-5 py-3 font-base-bold text-always-white shadow-[0_2px_8px_0_hsl(var(--accent-secondary-200)/16%)] transition duration-150 hover:bg-[#c6613f] disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isLoading}
       >
         {isLoading ? 'Searching...' : 'Search'}

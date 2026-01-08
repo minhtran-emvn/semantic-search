@@ -11,16 +11,16 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 py-16">
-        <header className="mb-12 text-center">
-          <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
+    <div className="min-h-screen bg-gradient-to-b from-bg-100 via-bg-100 to-bg-200 text-text-100">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 py-14 md:px-10">
+        <header className="mb-10 text-center">
+          <p className="font-small-bold uppercase tracking-[0.32em] text-text-400">
             Sound Library
           </p>
-          <h1 className="mt-4 text-4xl font-semibold text-white md:text-5xl">
+          <h1 className="mt-4 font-display text-text-100">
             Semantic Audio Search
           </h1>
-          <p className="mt-4 max-w-2xl text-base text-slate-300">
+          <p className="font-base mt-4 max-w-2xl text-text-400">
             Type a description and discover the closest matching sound clips in
             seconds.
           </p>
@@ -29,7 +29,7 @@ function App() {
         <SearchBar onSearch={handleSearch} isLoading={isLoading} />
 
         {error && (
-          <p className="mt-8 text-center text-sm font-semibold text-red-300">
+          <p className="mt-8 text-center font-base-bold text-danger-100">
             {error}
           </p>
         )}
