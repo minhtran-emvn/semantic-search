@@ -10,3 +10,4 @@
 deployment/nginx/*.conf.bak
 *.tar.gz
 backend/data/
+DEPLOYMENT.md
