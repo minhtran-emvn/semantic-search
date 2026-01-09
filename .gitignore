@@ -1,6 +1,12 @@
 .claude/
 .env
 .env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 .venv/
 .node_modules/
 .tmp/
+deployment/nginx/*.conf.bak
+*.tar.gz
+backend/data/
