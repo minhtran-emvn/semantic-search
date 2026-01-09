@@ -9,5 +9,7 @@
 .tmp/
 deployment/nginx/*.conf.bak
 *.tar.gz
-backend/data/
+backend/data/*
+!backend/data/audio/.gitkeep
+!backend/data/embeddings/.gitkeep
 DEPLOYMENT.md
