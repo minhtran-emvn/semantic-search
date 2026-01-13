@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -37,9 +37,15 @@ jobs:
           model: claude-sonnet-4-5-20250929
           timeout_minutes: 30
           max_turns: 10
+          use_sticky_comment: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Post exactly one top-level PR comment using `gh pr comment`.
+            Do not submit a review. Do not include tool traces, system initialization,
+            todo lists, progress updates, or token/cost details in the comment.
+            Start the comment with: "Pull Request Review - PR #${{ github.event.pull_request.number }}".
 
             Review this Pull Request using the specialized reviewer agents:
             - .claude/agents/code-quality-reviewer.md
