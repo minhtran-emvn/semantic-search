@@ -3,11 +3,9 @@ name: PR - Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created]
 
 concurrency:
-  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -18,49 +16,25 @@ permissions:
 
 jobs:
   review:
-    # Run on PR events, or on issue comments that mention @claude
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (PR event)
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Checkout repository (issue_comment event)
-        if: github.event_name == 'issue_comment'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout PR branch (issue_comment event)
-        if: github.event_name == 'issue_comment'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr checkout ${{ github.event.issue.number }}
-
       - name: Get PR base branch
         id: pr-info
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
-          else
-            BASE_REF=$(gh pr view ${{ github.event.issue.number }} --json baseRefName -q '.baseRefName')
-            echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
-          fi
+          echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
 
       - name: Claude Code Review
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          mode: review
+          base_branch: ${{ github.event.pull_request.base.ref }}
           model: claude-sonnet-4-5-20250929
           timeout_minutes: 30
           max_turns: 10
