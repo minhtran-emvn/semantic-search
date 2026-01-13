@@ -66,9 +66,19 @@ jobs:
           max_turns: 10
           allowed_tools: "Read,Glob,Grep,Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
           custom_instructions: |
-            Review this Pull Request using the standards in .claude/agents/code-reviewer.md
+            Review this Pull Request using the specialized reviewer agents:
+            - .claude/agents/code-quality-reviewer.md
+            - .claude/agents/documentation-accuracy-reviewer.md
+            - .claude/agents/performance-reviewer.md
+            - .claude/agents/security-code-reviewer.md
+            - .claude/agents/test-coverage-reviewer.md
 
-            1. Read .claude/agents/code-reviewer.md for the full checklist
+            1. Read all reviewer agent files to understand the review checklists
             2. Run `git diff origin/${{ steps.pr-info.outputs.base_ref }}...HEAD` to see changes
-            3. Apply the review checklist to modified files
-            4. Provide feedback organized by severity (Critical, Warning, Suggestion)
+            3. Apply each reviewer's checklist to modified files:
+               - Code Quality: coding standards, maintainability, best practices
+               - Documentation Accuracy: comments, docstrings, README updates
+               - Performance: efficiency, optimization opportunities, resource usage
+               - Security: vulnerabilities, input validation, sensitive data handling
+               - Test Coverage: test completeness, edge cases, test quality
+            4. Provide feedback organized by category and severity (Critical, Warning, Suggestion)
