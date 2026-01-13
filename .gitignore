@@ -1,4 +1,12 @@
-.claude/
+# Ignore .claude directory except specific reviewer agents
+.claude/**
+!.claude/
+!.claude/agents/
+!.claude/agents/code-quality-reviewer.md
+!.claude/agents/documentation-accuracy-reviewer.md
+!.claude/agents/performance-reviewer.md
+!.claude/agents/security-code-reviewer.md
+!.claude/agents/test-coverage-reviewer.md
 .env
 .env.*
 !.env.example
