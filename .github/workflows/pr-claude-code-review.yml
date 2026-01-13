@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -30,16 +30,23 @@ jobs:
           echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
 
       - name: Claude Code Review
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          mode: review
-          base_branch: ${{ github.event.pull_request.base.ref }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           model: claude-sonnet-4-5-20250929
           timeout_minutes: 30
           max_turns: 10
-          allowed_tools: "Read,Glob,Grep,Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
-          custom_instructions: |
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Post exactly one top-level PR comment using `gh pr comment`.
+            Do not submit a review. Do not include tool traces, system initialization,
+            todo lists, progress updates, or token/cost details in the comment.
+            Start the comment with: "Pull Request Review - PR #${{ github.event.pull_request.number }}".
+
             Review this Pull Request using the specialized reviewer agents:
             - .claude/agents/code-quality-reviewer.md
             - .claude/agents/documentation-accuracy-reviewer.md
@@ -56,3 +63,5 @@ jobs:
                - Security: vulnerabilities, input validation, sensitive data handling
                - Test Coverage: test completeness, edge cases, test quality
             4. Provide feedback organized by category and severity (Critical, Warning, Suggestion)
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),mcp__github_inline_comment__create_inline_comment"

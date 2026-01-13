@@ -37,6 +37,8 @@ async def lifespan(app: FastAPI):
         if settings.CLAP_DEVICE != "auto":
             device_override = settings.CLAP_DEVICE
 
+        logger.info("CLAP device selection: %s", device_override or "auto")
+
         clap_service = CLAPService(device=device_override)
         clap_service.load_model()
 

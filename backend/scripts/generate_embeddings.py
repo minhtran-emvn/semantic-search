@@ -54,6 +54,7 @@ def main() -> None:
         return
 
     device_override = None if args.device == "auto" else args.device
+    logger.info("Embedding run config: device=%s, batch_size=%d", device_override or "auto", BATCH_SIZE)
     clap_service = CLAPService(device=device_override)
     clap_service.load_model()
 
