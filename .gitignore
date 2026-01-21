@@ -27,3 +27,4 @@ backend/data/embeddings/*
 !backend/data/audio/.gitkeep
 !backend/data/embeddings/.gitkeep
 DEPLOYMENT.md
+630k-audioset-fusion-best.ptgk2hl0yx.tmp
