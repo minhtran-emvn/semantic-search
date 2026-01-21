@@ -5,7 +5,7 @@ This module defines type-safe API contracts with automatic validation
 for the Semantic Audio Search Engine.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Literal, Optional
 
 
@@ -14,7 +14,7 @@ class SearchRequest(BaseModel):
 
     Attributes:
         query: Natural language search query (1-500 characters, ~77 tokens max)
-        top_k: Number of top results to return (1-100, default 5)
+        top_k: Number of top results to return (1-100, default 10)
     """
     query: str = Field(
         ...,
@@ -119,6 +119,8 @@ class HealthResponse(BaseModel):
         status: Overall health status of the API
         model_loaded: Whether the CLAP model is loaded and ready
     """
+    model_config = ConfigDict(protected_namespaces=())
+
     status: str = Field(..., description="Overall health status")
     model_loaded: bool = Field(
         ...,

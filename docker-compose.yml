@@ -1,13 +1,6 @@
 version: '3.8'
 
 services:
-  libretranslate:
-    image: libretranslate/libretranslate:latest
-    container_name: libretranslate
-    restart: unless-stopped
-    networks:
-      - semantic-network
-
   backend:
     build:
       context: ./backend

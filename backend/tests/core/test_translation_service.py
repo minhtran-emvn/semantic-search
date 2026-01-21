@@ -116,6 +116,63 @@ def test_detect_and_translate_skips_english():
     assert result.lang_code == "en"
 
 
+def test_detect_and_translate_forces_non_ascii_translation():
+    service = TranslationService(provider="google", api_key="test-key")
+
+    async def fake_detect_language(text):
+        return LanguageDetectionResult(lang_code="en", confidence=0.9, is_english=True)
+
+    calls = {}
+
+    async def fake_translate(text, source_lang):
+        calls["source_lang"] = source_lang
+        return TranslationResult(translated_text="storm", success=True)
+
+    service.detect_language = fake_detect_language
+    service.translate = fake_translate
+    result = asyncio.run(service.detect_and_translate("bão"))
+
+    assert result.was_translated is True
+    assert result.english_text == "storm"
+    assert calls["source_lang"] == "vi"
+
+
+def test_detect_and_translate_uses_vietnamese_glossary():
+    service = TranslationService(provider="google", api_key="test-key")
+
+    async def fake_detect_language(text):
+        return LanguageDetectionResult(lang_code="vi", confidence=0.9, is_english=False)
+
+    async def fake_translate(text, source_lang):
+        return TranslationResult(translated_text="misha ti", success=True)
+
+    service.detect_language = fake_detect_language
+    service.translate = fake_translate
+
+    result = asyncio.run(service.detect_and_translate("tiếng mưa"))
+
+    assert result.was_translated is True
+    assert result.english_text == "sound of rain"
+
+
+def test_detect_and_translate_fallback_on_vietnamese_failure():
+    service = TranslationService(provider="google", api_key="test-key")
+
+    async def fake_detect_language(text):
+        return LanguageDetectionResult(lang_code="vi", confidence=0.9, is_english=False)
+
+    async def fake_translate(text, source_lang):
+        return TranslationResult(translated_text=text, success=False, error_msg="HTTP Error 400")
+
+    service.detect_language = fake_detect_language
+    service.translate = fake_translate
+
+    result = asyncio.run(service.detect_and_translate("tiếng sấm sét"))
+
+    assert result.was_translated is True
+    assert result.english_text == "sound of thunder"
+
+
 def test_detect_and_translate_non_english():
     service = TranslationService(provider="google", api_key="test-key")
 

@@ -46,16 +46,105 @@ class TranslationService:
     Translation service with provider-specific configuration.
     """
 
-    _SUPPORTED_PROVIDERS = {"google", "libretranslate", "deepl"}
+    _SUPPORTED_PROVIDERS = {"google", "googletrans", "deepl"}
+    # Vietnamese glossary - longer phrases MUST come before shorter ones
+    _VI_GLOSSARY = (
+        # Weather/Nature
+        ("sấm sét", "thunder and lightning"),
+        ("sấm", "thunder"),
+        ("sét", "lightning"),
+        ("bão", "storm"),
+        ("mưa rào", "heavy rain"),
+        ("mưa", "rain"),
+        ("gió", "wind"),
+        ("sóng biển", "ocean waves"),
+        ("sóng", "waves"),
+        ("nước chảy", "flowing water"),
+        ("nước", "water"),
+        ("lửa", "fire"),
+        # Vehicle/Transport sounds
+        ("còi xe hơi", "car horn"),
+        ("còi xe", "car horn"),
+        ("còi tàu", "train horn"),
+        ("còi", "horn"),
+        ("xe hơi", "car"),
+        ("xe máy", "motorcycle"),
+        ("xe", "vehicle"),
+        ("động cơ", "engine"),
+        ("máy bay", "airplane"),
+        ("tàu hỏa", "train"),
+        ("tàu", "ship"),
+        # Animals
+        ("chó sủa", "dog barking"),
+        ("chó", "dog"),
+        ("mèo kêu", "cat meowing"),
+        ("mèo", "cat"),
+        ("chim hót", "bird singing"),
+        ("chim", "bird"),
+        ("gà gáy", "rooster crowing"),
+        ("gà", "chicken"),
+        # Human sounds
+        ("tiếng cười", "laughter"),
+        ("tiếng khóc", "crying"),
+        ("vỗ tay", "applause"),
+        ("la hét", "screaming"),
+        ("nói chuyện", "talking"),
+        ("hát", "singing"),
+        # Objects/Actions
+        ("cửa đóng", "door closing"),
+        ("cửa", "door"),
+        ("chuông", "bell"),
+        ("đồng hồ", "clock"),
+        ("điện thoại", "phone"),
+        ("bước chân", "footsteps"),
+        ("nổ", "explosion"),
+        ("súng", "gunshot"),
+        ("kính vỡ", "glass breaking"),
+        # Music related
+        ("nhạc tết", "festive new year music"),
+        ("nhạc xuân", "spring festival music"),
+        ("nhạc năm mới", "new year music"),
+        ("nhạc kinh dị", "horror music"),
+        ("nhạc buồn", "sad music"),
+        ("nhạc vui", "happy music"),
+        ("nhạc sôi động", "energetic music"),
+        ("nhạc nhẹ nhàng", "gentle relaxing music"),
+        ("nhạc nền", "background music"),
+        ("nhạc phim", "film music soundtrack"),
+        ("nhạc quảng cáo", "commercial advertisement music"),
+        ("nhạc trao giải", "award ceremony triumphant music"),
+        ("nhạc lễ trao giải", "award ceremony triumphant fanfare music"),
+        ("nhạc", "music"),
+        ("bài hát", "song"),
+        ("ca khúc", "song"),
+        ("rap", "rap"),
+        ("hip hop", "hip hop"),
+        ("hip-hop", "hip hop"),
+    )
+    _VI_SOUND_MARKERS = ("tiếng", "âm thanh")
+    _VI_KEYWORDS = (
+        # Nature
+        "rain", "storm", "thunder", "lightning", "wind", "water", "waves", "fire",
+        # Vehicles
+        "horn", "car", "vehicle", "engine", "motorcycle", "airplane", "train",
+        # Animals
+        "dog", "cat", "bird", "chicken", "barking", "meowing",
+        # Human
+        "laughter", "crying", "applause", "screaming", "footsteps",
+        # Objects
+        "door", "bell", "phone", "explosion", "gunshot", "glass",
+        # Music
+        "music", "song", "rap", "hip hop", "soundtrack",
+    )
 
     _DEFAULT_ENDPOINTS: Dict[str, Dict[str, Optional[str]]] = {
         "google": {
             "translate_url": "https://translation.googleapis.com/language/translate/v2",
             "detect_url": "https://translation.googleapis.com/language/translate/v2/detect",
         },
-        "libretranslate": {
-            "translate_url": "https://libretranslate.com/translate",
-            "detect_url": "https://libretranslate.com/detect",
+        "googletrans": {
+            "translate_url": None,
+            "detect_url": None,
         },
         "deepl": {
             "translate_url": "https://api-free.deepl.com/v2/translate",
@@ -63,12 +152,18 @@ class TranslationService:
         },
     }
 
-    def __init__(self, provider: str, api_key: str, api_url: Optional[str] = None):
+    def __init__(
+        self,
+        provider: str,
+        api_key: str,
+        api_url: Optional[str] = None,
+        allowed_langs: Optional[list[str]] = None,
+    ):
         """
         Initialize translation service with configurable provider.
 
         Args:
-            provider: Translation provider ("google", "libretranslate", "deepl")
+            provider: Translation provider ("google", "googletrans", "deepl")
             api_key: API key for the provider
             api_url: Optional base URL override for provider endpoints
         """
@@ -89,6 +184,15 @@ class TranslationService:
         self.api_key = api_key or ""
         self.api_url = api_url
         self.endpoints = self._build_endpoints(normalized_provider, api_url)
+        self._googletrans_client = None
+        if allowed_langs:
+            self.allowed_langs = {
+                lang.strip().lower()
+                for lang in allowed_langs
+                if isinstance(lang, str) and lang.strip()
+            }
+        else:
+            self.allowed_langs = None
         self._translation_cache: OrderedDict[
             tuple[str, str, str], tuple[str, float]
         ] = OrderedDict()
@@ -107,13 +211,11 @@ class TranslationService:
     def _build_endpoints(
         self, provider: str, api_url: Optional[str]
     ) -> Dict[str, Optional[str]]:
+        if provider == "googletrans":
+            return dict(self._DEFAULT_ENDPOINTS[provider])
+
         if api_url:
             base_url = api_url.rstrip("/")
-            if provider == "libretranslate":
-                return {
-                    "translate_url": f"{base_url}/translate",
-                    "detect_url": f"{base_url}/detect",
-                }
             if provider == "google":
                 return {
                     "translate_url": base_url,
@@ -144,8 +246,8 @@ class TranslationService:
         try:
             if self.provider == "google":
                 detection = await self._detect_google(trimmed, timeout_seconds)
-            elif self.provider == "libretranslate":
-                detection = await self._detect_libretranslate(trimmed, timeout_seconds)
+            elif self.provider == "googletrans":
+                detection = await self._detect_googletrans(trimmed)
             else:
                 detection = await self._detect_deepl(trimmed, timeout_seconds)
 
@@ -186,9 +288,11 @@ class TranslationService:
         if not trimmed:
             return TranslationResult(translated_text=text, success=True)
 
-        normalized_lang = (source_lang or "en").strip().lower()
+        normalized_lang = (source_lang or "").strip().lower()
         normalized_target = (target_lang or "en").strip().lower()
-        if normalized_lang == normalized_target:
+        if not normalized_lang:
+            normalized_lang = "auto"
+        if normalized_lang not in {"auto"} and normalized_lang == normalized_target:
             return TranslationResult(translated_text=text, success=True)
 
         cache_key = (normalized_lang, normalized_target, trimmed)
@@ -201,9 +305,9 @@ class TranslationService:
                 translated_text = await self._translate_google(
                     trimmed, normalized_lang, normalized_target, timeout_seconds
                 )
-            elif self.provider == "libretranslate":
-                translated_text = await self._translate_libretranslate(
-                    trimmed, normalized_lang, normalized_target, timeout_seconds
+            elif self.provider == "googletrans":
+                translated_text = await self._translate_googletrans(
+                    trimmed, normalized_lang, normalized_target
                 )
             else:
                 translated_text = await self._translate_deepl(
@@ -275,8 +379,36 @@ class TranslationService:
                 was_translated=False,
             )
 
-        translation = await self.translate(trimmed, lang_code)
+        if (
+            force_translation
+            and self.allowed_langs == {"vi"}
+            and lang_code not in self.allowed_langs
+        ):
+            lang_code = "vi"
+
+        if self.allowed_langs is not None and lang_code not in self.allowed_langs:
+            return ProcessedQuery(
+                english_text=original_text,
+                original_text=original_text,
+                lang_code=lang_code,
+                was_translated=False,
+            )
+
+        source_lang = "auto" if force_translation and lang_code == "en" else lang_code
+        translation = await self.translate(trimmed, source_lang)
         if not translation.success:
+            if force_translation and lang_code == "vi":
+                glossary_hint = self._apply_vietnamese_glossary(trimmed)
+                if glossary_hint:
+                    warning = "Translation unavailable. Using Vietnamese keyword fallback."
+                    return ProcessedQuery(
+                        english_text=glossary_hint,
+                        original_text=original_text,
+                        lang_code=lang_code,
+                        was_translated=True,
+                        translation_warning=warning,
+                    )
+
             warning = self._build_translation_warning(translation.error_msg)
             return ProcessedQuery(
                 english_text=original_text,
@@ -287,6 +419,7 @@ class TranslationService:
             )
 
         english_text = translation.translated_text or original_text
+        # Trust the translation service - don't override with glossary
         if len(english_text) > 500:
             logger.info(
                 "Translated text exceeded 500 characters; truncating (len=%d).",
@@ -319,25 +452,16 @@ class TranslationService:
             "confidence": detection.get("confidence"),
         }
 
-    async def _detect_libretranslate(
-        self, text: str, timeout_seconds: float
-    ) -> Dict[str, object]:
-        url = self.endpoints.get("detect_url")
-        if not url:
-            raise ValueError("LibreTranslate detection URL not configured.")
+    async def _detect_googletrans(self, text: str) -> Dict[str, object]:
+        def _execute() -> Dict[str, object]:
+            client = self._get_googletrans_client()
+            detection = client.detect(text)
+            return {
+                "lang_code": getattr(detection, "lang", None),
+                "confidence": getattr(detection, "confidence", 0.0),
+            }
 
-        payload = {"q": text}
-        if self.api_key:
-            payload["api_key"] = self.api_key
-
-        response = await self._post_json(url, payload, timeout_seconds)
-        if not isinstance(response, list) or not response:
-            raise ValueError("No detections returned from LibreTranslate API.")
-        detection = response[0]
-        return {
-            "lang_code": detection.get("language"),
-            "confidence": detection.get("confidence"),
-        }
+        return await asyncio.to_thread(_execute)
 
     async def _detect_deepl(self, text: str, timeout_seconds: float) -> Dict[str, object]:
         url = self.endpoints.get("translate_url")
@@ -371,38 +495,30 @@ class TranslationService:
         if self.api_key:
             url = f"{url}?key={self.api_key}"
 
-        payload = {"q": text, "target": target_lang, "source": source_lang}
+        payload = {"q": text, "target": target_lang}
+        if source_lang and source_lang != "auto":
+            payload["source"] = source_lang
         response = await self._post_json(url, payload, timeout_seconds)
         translations = response.get("data", {}).get("translations", [])
         if not translations:
             raise ValueError("No translations returned from Google API.")
         return translations[0].get("translatedText", "").strip()
 
-    async def _translate_libretranslate(
+    async def _translate_googletrans(
         self,
         text: str,
         source_lang: str,
         target_lang: str,
-        timeout_seconds: float,
     ) -> str:
-        url = self.endpoints.get("translate_url")
-        if not url:
-            raise ValueError("LibreTranslate translate URL not configured.")
+        def _execute() -> str:
+            client = self._get_googletrans_client()
+            if source_lang and source_lang != "auto":
+                result = client.translate(text, src=source_lang, dest=target_lang)
+            else:
+                result = client.translate(text, dest=target_lang)
+            return str(result.text).strip()
 
-        payload = {
-            "q": text,
-            "source": source_lang,
-            "target": target_lang,
-            "format": "text",
-        }
-        if self.api_key:
-            payload["api_key"] = self.api_key
-
-        response = await self._post_json(url, payload, timeout_seconds)
-        translated_text = response.get("translatedText")
-        if translated_text is None:
-            raise ValueError("No translations returned from LibreTranslate API.")
-        return str(translated_text).strip()
+        return await asyncio.to_thread(_execute)
 
     async def _translate_deepl(
         self,
@@ -416,7 +532,7 @@ class TranslationService:
             raise ValueError("DeepL translate URL not configured.")
 
         payload = {"text": [text], "target_lang": target_lang.upper()}
-        if source_lang:
+        if source_lang and source_lang != "auto":
             payload["source_lang"] = source_lang.upper()
         if self.api_key:
             payload["auth_key"] = self.api_key
@@ -426,6 +542,19 @@ class TranslationService:
         if not translations:
             raise ValueError("No translations returned from DeepL API.")
         return str(translations[0].get("text", "")).strip()
+
+    def _get_googletrans_client(self):
+        if self._googletrans_client is None:
+            try:
+                from googletrans import Translator
+            except ImportError as exc:
+                raise RuntimeError(
+                    "googletrans is not installed. Add it to requirements."
+                ) from exc
+
+            self._googletrans_client = Translator()
+
+        return self._googletrans_client
 
     def _is_non_textual(self, text: str) -> bool:
         stripped = "".join(text.split())
@@ -503,6 +632,39 @@ class TranslationService:
                 return "".join(ascii_letters)
             return "".join(non_ascii_letters)
         return text
+
+    def _apply_vietnamese_glossary(self, text: str) -> str:
+        lowered = text.lower()
+        sound_hint = any(marker in lowered for marker in self._VI_SOUND_MARKERS)
+        cleaned = lowered
+
+        for marker in self._VI_SOUND_MARKERS:
+            cleaned = cleaned.replace(marker, " ")
+
+        for vietnamese, english in self._VI_GLOSSARY:
+            cleaned = cleaned.replace(vietnamese, english)
+
+        cleaned = " ".join(cleaned.split())
+        if sound_hint:
+            cleaned = f"sound of {cleaned}".strip()
+
+        return cleaned
+
+    def _should_use_glossary(self, translated_text: str, glossary_hint: str) -> bool:
+        if not glossary_hint:
+            return False
+
+        translated_lower = translated_text.lower()
+        glossary_lower = glossary_hint.lower()
+
+        translated_hits = any(keyword in translated_lower for keyword in self._VI_KEYWORDS)
+        glossary_hits = any(keyword in glossary_lower for keyword in self._VI_KEYWORDS)
+
+        if glossary_hits and not translated_hits:
+            logger.info("Using Vietnamese glossary fallback for translation: %s", glossary_hint)
+            return True
+
+        return False
 
     def _build_translation_warning(self, error_msg: Optional[str]) -> str:
         if error_msg and "rate limit" in error_msg.lower():

@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
                 provider=settings.TRANSLATION_SERVICE_PROVIDER,
                 api_key=settings.TRANSLATION_API_KEY or "",
                 api_url=settings.TRANSLATION_API_URL,
+                allowed_langs=settings.TRANSLATION_ALLOWED_LANGS,
             )
             keywords_path = Path(__file__).resolve().parents[1] / "config" / "detection_keywords.json"
             content_type_detector = ContentTypeDetector(

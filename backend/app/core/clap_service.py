@@ -6,6 +6,7 @@ model with intelligent device detection and management.
 """
 
 import logging
+import re
 from typing import List, Optional
 
 import numpy as np
@@ -39,6 +40,23 @@ class CLAPService:
         self.device_memory: float = self._check_gpu_memory()
 
         logger.info(f"CLAP service initialized with device: {self.device}")
+
+    _SONG_TEMPLATES = (
+        "This is a {query} song",
+        "This music features {query}",
+    )
+    _SFX_TEMPLATES = (
+        "This is a sound of {query}",
+        "Sound effect of {query}",
+    )
+    _SONG_STRIP_TERMS = ("song", "music", "track")
+    _SFX_STRIP_TERMS = ("sound effect", "sound", "sfx")
+    _SYNONYM_MAP = {
+        "rap": ["hip hop", "hip-hop", "hiphop"],
+        "hip hop": ["rap", "hip-hop", "hiphop"],
+        "hip-hop": ["rap", "hip hop", "hiphop"],
+        "storm": ["thunder", "wind", "rain"],
+    }
 
     def _get_device(self, device_override: Optional[str] = None) -> str:
         """
@@ -279,14 +297,21 @@ class CLAPService:
 
         self._swap_models_if_needed(target_type)
 
+        prompts = self._build_prompt_variants(text, target_type)
+
         logger.debug(
-            "Generating text embedding for content_type=%s query: %s...",
+            "Generating text embedding for content_type=%s prompts=%d query: %s...",
             target_type,
+            len(prompts),
             text[:100],
         )
 
-        embedding = selected_model.get_text_embedding([text], use_tensor=False)
-        embedding = embedding.squeeze()
+        embedding = selected_model.get_text_embedding(prompts, use_tensor=False)
+        embedding = np.array(embedding)
+        if embedding.ndim == 1:
+            return embedding
+
+        embedding = embedding.mean(axis=0)
 
         logger.debug(
             "Text embedding generated - shape: %s, dtype: %s",
@@ -295,6 +320,60 @@ class CLAPService:
         )
 
         return embedding
+
+    def _build_prompt_variants(self, text: str, content_type: str) -> List[str]:
+        cleaned = self._strip_query_terms(text, content_type)
+        variants = self._expand_query_variants(cleaned)
+        templates = self._SONG_TEMPLATES if content_type == "song" else self._SFX_TEMPLATES
+
+        prompts: List[str] = []
+        seen = set()
+        for variant in variants:
+            for template in templates:
+                prompt = template.format(query=variant).strip()
+                key = prompt.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                prompts.append(prompt)
+
+        return prompts or [text]
+
+    def _strip_query_terms(self, text: str, content_type: str) -> str:
+        if content_type == "song":
+            terms = self._SONG_STRIP_TERMS
+        else:
+            terms = self._SFX_STRIP_TERMS
+        pattern = r"\b(" + "|".join(re.escape(term) for term in terms) + r")\b"
+        cleaned = re.sub(pattern, " ", text, flags=re.IGNORECASE)
+        cleaned = " ".join(cleaned.split())
+        return cleaned if cleaned else text
+
+    def _expand_query_variants(self, text: str) -> List[str]:
+        variants: List[str] = []
+        seen = set()
+
+        def add_variant(value: str) -> None:
+            trimmed = value.strip()
+            if not trimmed:
+                return
+            key = trimmed.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            variants.append(trimmed)
+
+        add_variant(text)
+        lowered = text.lower()
+
+        for key, replacements in self._SYNONYM_MAP.items():
+            if key not in lowered:
+                continue
+            pattern = re.compile(r"\b" + re.escape(key) + r"\b", flags=re.IGNORECASE)
+            for replacement in replacements:
+                add_variant(pattern.sub(replacement, text))
+
+        return variants
 
     def get_multi_text_embeddings(
         self, texts: List[str], content_type: str

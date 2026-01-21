@@ -22,10 +22,11 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore"
+        extra="ignore",
+        env_ignore_empty=True
     )
 
     # Directory paths
@@ -84,8 +85,8 @@ class Settings(BaseSettings):
 
     # Translation service configuration
     TRANSLATION_SERVICE_PROVIDER: str = Field(
-        default="libretranslate",
-        description="Translation provider: 'google', 'libretranslate', or 'deepl'"
+        default="googletrans",
+        description="Translation provider: 'google', 'googletrans', or 'deepl'"
     )
 
     TRANSLATION_API_KEY: Optional[str] = Field(
@@ -96,6 +97,11 @@ class Settings(BaseSettings):
     TRANSLATION_API_URL: Optional[str] = Field(
         default=None,
         description="Custom translation API URL for self-hosted providers"
+    )
+
+    TRANSLATION_ALLOWED_LANGS: List[str] = Field(
+        default=["vi"],
+        description="Allowed source languages for translation (default: Vietnamese only)"
     )
 
     # API server configuration

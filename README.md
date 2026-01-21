@@ -2,13 +2,7 @@
 
 ## Multilingual Search
 
-Prompt Search accepts natural language queries in multiple languages and translates them to English before embedding generation. If translation is unavailable, the system falls back to the original text with a warning so searches still complete.
-
-Supported language groups include:
-- European languages (Spanish, French, German, Italian, Portuguese)
-- East Asian languages (Chinese, Japanese, Korean)
-- Southeast Asian languages (Vietnamese, Thai, Indonesian)
-- Other major languages (Arabic, Russian, Hindi)
+Prompt Search accepts natural language queries and translates Vietnamese to English before embedding generation. If translation is unavailable, the system falls back to the original text with a warning so searches still complete.
 
 ## Content Type Detection
 
@@ -21,7 +15,7 @@ The search page shows four categorized prompt examples (Mood/Emotion, Genre/Styl
 ## Configuration
 
 Prompt Search configuration uses environment variables:
-- `TRANSLATION_SERVICE_PROVIDER` (google | libretranslate | deepl)
+- `TRANSLATION_SERVICE_PROVIDER` (google | googletrans | deepl)
 - `TRANSLATION_API_KEY` (optional, depending on provider)
 - `TRANSLATION_API_URL` (optional override, useful for self-hosted services)
 - `MUSIC_CHECKPOINT_PATH` (default: `music_audioset_epoch_15_esc_90.14.pt`)

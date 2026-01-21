@@ -1,30 +1,5 @@
 {
-  "prompts": [
-    {
-      "category": "Mood/Emotion",
-      "text": "Melancholic piano piece for a rainy day scene"
-    },
-    {
-      "category": "Genre/Style",
-      "text": "Music with rapping vocal and heavy bass beat"
-    },
-    {
-      "category": "Use-Case",
-      "text": "Background music for a cooking tutorial, light and cheerful"
-    },
-    {
-      "category": "Sound Effects",
-      "text": "Sound of thunder and heavy rain storm"
-    },
-    {
-      "category": "Cinematic",
-      "text": "Scary horror music with tense strings and eerie atmosphere"
-    },
-    {
-      "category": "Energy/Tempo",
-      "text": "High energy electronic music for workout video"
-    }
-  ],
+  "prompts": [],
   "search_tips": [
     {
       "bad": "rap song",
@@ -41,5 +16,6 @@
       "good": "sound of thunder and heavy rain storm",
       "reason": "Be specific about what sounds you want"
     }
-  ]
+  ],
+  "tip_header": "Try descriptive phrasing like \"music with rapping vocal\" instead of \"rap song\"."
 }

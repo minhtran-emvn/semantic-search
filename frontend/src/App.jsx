@@ -27,12 +27,7 @@ function App() {
     performSearch(query, DEFAULT_TOP_K);
   };
 
-  const handleSelectPrompt = (promptText) => {
-    setSearchQuery(promptText);
-    performSearch(promptText, DEFAULT_TOP_K);
-  };
-
-  const showExamples = searchQuery.trim().length === 0;
+  const showTips = searchQuery.trim().length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg-100 via-bg-100 to-bg-200 text-text-100">
@@ -60,8 +55,7 @@ function App() {
         />
 
         <ExamplePrompts
-          onSelectPrompt={handleSelectPrompt}
-          isVisible={showExamples || isSearchFocused}
+          isVisible={showTips || isSearchFocused}
         />
 
         <div className="mt-6 w-full max-w-3xl">

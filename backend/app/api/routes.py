@@ -113,18 +113,38 @@ async def search_audio(
         english_text = processed_query.english_text
         original_query = processed_query.original_text
 
+        logger.info(
+            "Search: original='%s' -> translated='%s' (was_translated=%s)",
+            original_query,
+            english_text,
+            processed_query.was_translated,
+        )
+
         if search_request.content_type:
             content_type = search_request.content_type
+            logger.info("Content type from request: %s", content_type)
         else:
             detection = content_type_detector.detect(english_text)
             content_type = detection.type
+            logger.info(
+                "Content type detected: %s (confidence=%.2f, keywords=%s)",
+                detection.type,
+                detection.confidence,
+                detection.matched_keywords[:5] if detection.matched_keywords else [],
+            )
 
         # Process query with synonym expansion and prompt templates
         query_result = query_processor.process_query(english_text, content_type)
 
+        logger.info(
+            "Query processing: original='%s' -> expanded='%s'",
+            query_result.original_query,
+            query_result.expanded_query,
+        )
+
         if query_result.synonyms_applied:
             logger.info(
-                "Synonyms applied: %s", ", ".join(query_result.synonyms_applied)
+                "Synonyms/mappings applied: %s", ", ".join(query_result.synonyms_applied)
             )
 
         # Generate embeddings for all prompt variants and average them

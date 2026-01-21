@@ -3,7 +3,7 @@
 ## Environment
 
 - Backend: Docker container (`semantic-audio-backend`) on CPU
-- Translation: LibreTranslate container (`libretranslate`)
+- Translation: googletrans (Python library)
 - Embeddings: Copied from `backend/data/embeddings` into `/data/embeddings`
 - Test runner: `python3 backend/scripts/performance_test.py --runs 5`
 - Date: 2026-01-21

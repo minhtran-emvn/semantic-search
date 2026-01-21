@@ -67,6 +67,10 @@ function SearchBar({
         )}
         {showCharCount ? <span>{query.length}/500</span> : null}
       </div>
+      <p className="text-xs text-text-400">
+        Tip: Try descriptive phrasing like &quot;music with rapping vocal&quot; instead of
+        &quot;rap song&quot;.
+      </p>
       {validationError ? (
         <div id="search-error" role="alert" className="text-xs text-danger-500">
           {validationError}

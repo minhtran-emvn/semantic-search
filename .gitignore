@@ -17,6 +17,9 @@ Ignore .claude directory except specific reviewer agents
 .tmp/
 deployment/nginx/*.conf.bak
 *.tar.gz
+__pycache__/
+*.py[cod]
+*$py.class
 backend/data/audio/*
 backend/data/embeddings/*
 !backend/data/audio/
