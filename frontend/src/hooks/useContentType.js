@@ -41,11 +41,22 @@ export default function useContentType() {
 
   const applyAutoDetection = useCallback(
     (detectedType) => {
-      if (hasManualOverride || !detectedType) {
+      if (!detectedType) {
         return;
       }
+      // Always update the content type from backend detection
+      // This ensures the UI reflects what the backend is actually searching
       if (detectedType !== contentType) {
         setContentType(detectedType);
+      }
+      // Clear manual override if the detected type matches the manual selection
+      // This allows auto-detection to work again for future searches
+      if (hasManualOverride && detectedType === contentType) {
+        // User's manual choice matches auto-detection, clear the override
+        setHasManualOverride(false);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(STORAGE_KEY);
+        }
       }
     },
     [contentType, hasManualOverride]

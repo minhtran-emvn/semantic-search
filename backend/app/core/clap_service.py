@@ -296,6 +296,57 @@ class CLAPService:
 
         return embedding
 
+    def get_multi_text_embeddings(
+        self, texts: List[str], content_type: str
+    ) -> List[np.ndarray]:
+        """
+        Generate embeddings for multiple text prompts.
+
+        Args:
+            texts: List of text prompts to embed
+            content_type: Either "song" or "sfx"
+
+        Returns:
+            List of embedding arrays, one per input text
+        """
+        normalized_type = content_type.lower()
+        if normalized_type not in {"song", "sfx"}:
+            raise ValueError(f"Unsupported content type: {content_type}")
+
+        selected_model = self.model
+        target_type = "sfx"
+
+        if normalized_type == "song" and self.music_model is not None:
+            selected_model = self.music_model
+            target_type = "song"
+
+        if selected_model is None:
+            error_msg = "CLAP model is not loaded. Call load_model() first."
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        self._swap_models_if_needed(target_type)
+
+        logger.debug(
+            "Generating %d text embeddings for content_type=%s",
+            len(texts),
+            target_type,
+        )
+
+        # Get embeddings for all texts in a single batch
+        embeddings = selected_model.get_text_embedding(texts, use_tensor=False)
+
+        # Split into list of individual embeddings
+        result = [embeddings[i] for i in range(embeddings.shape[0])]
+
+        logger.debug(
+            "Generated %d embeddings - shape: %s each",
+            len(result),
+            result[0].shape if result else "N/A",
+        )
+
+        return result
+
     def get_text_embedding(self, text: str) -> np.ndarray:
         """
         Generate 512-dimensional text embedding from natural language query.

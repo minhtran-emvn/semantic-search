@@ -23,7 +23,7 @@ class SearchRequest(BaseModel):
         description="Natural language search query"
     )
     top_k: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=100,
         description="Number of top results to return"
@@ -41,6 +41,7 @@ class AudioResult(BaseModel):
         filename: Name/title of the audio file
         similarity: Similarity score between 0.0 and 1.0
         audio_url: URL path to access the audio file
+        folder: Parent folder path (empty string if in root)
     """
     filename: str = Field(..., description="Audio file name/title")
     similarity: float = Field(
@@ -53,6 +54,10 @@ class AudioResult(BaseModel):
     content_type: str = Field(
         ...,
         description="Content type for the audio result (song or sfx)"
+    )
+    folder: str = Field(
+        default="",
+        description="Parent folder path (empty if in root audio directory)"
     )
 
 
@@ -86,12 +91,24 @@ class ExamplePrompt(BaseModel):
     text: str = Field(..., description="Example prompt text")
 
 
+class SearchTip(BaseModel):
+    """Search tip showing bad vs good query phrasing."""
+
+    bad: str = Field(..., description="Example of poor query phrasing")
+    good: str = Field(..., description="Example of better query phrasing")
+    reason: str = Field(..., description="Why the good phrasing works better")
+
+
 class ExamplePromptsResponse(BaseModel):
     """Response model for example prompts."""
 
     prompts: List[ExamplePrompt] = Field(
         ...,
         description="List of example prompts grouped by category"
+    )
+    search_tips: List[SearchTip] = Field(
+        default=[],
+        description="List of search tips for better query phrasing"
     )
 
 

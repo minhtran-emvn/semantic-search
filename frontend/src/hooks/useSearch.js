@@ -24,11 +24,21 @@ export default function useSearch() {
     setIsTranslating(true);
     setError(null);
     setTranslationWarning(null);
+
+    // Check if this is a new query (not just toggling content type)
+    const isNewQuery = query !== lastQuery;
     setLastQuery(query);
 
     try {
-      const resolvedType =
-        manualType || (hasManualOverride ? contentType : null);
+      // If this is a new query and no explicit manualType was passed,
+      // let the backend auto-detect the content type
+      let resolvedType = manualType;
+      if (!manualType && !isNewQuery && hasManualOverride) {
+        // Only preserve manual override for same query (e.g., toggling)
+        resolvedType = contentType;
+      }
+      // For new queries, resolvedType stays null to allow auto-detection
+
       const response = await searchAudio(query, topK, resolvedType);
       setResults(Array.isArray(response?.results) ? response.results : []);
       setTranslationWarning(response?.translation_warning || null);
@@ -45,7 +55,7 @@ export default function useSearch() {
       setIsLoading(false);
       setIsTranslating(false);
     }
-  }, [applyAutoDetection, contentType, hasManualOverride]);
+  }, [applyAutoDetection, contentType, hasManualOverride, lastQuery]);
 
   const toggleContentType = useCallback(() => {
     const newType = contentType === 'song' ? 'sfx' : 'song';

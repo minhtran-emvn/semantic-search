@@ -6,7 +6,7 @@
     },
     {
       "category": "Genre/Style",
-      "text": "Upbeat electronic instrumental for a tech product demo"
+      "text": "Music with rapping vocal and heavy bass beat"
     },
     {
       "category": "Use-Case",
@@ -14,7 +14,32 @@
     },
     {
       "category": "Sound Effects",
-      "text": "Subtle nature ambience with birds chirping"
+      "text": "Sound of thunder and heavy rain storm"
+    },
+    {
+      "category": "Cinematic",
+      "text": "Scary horror music with tense strings and eerie atmosphere"
+    },
+    {
+      "category": "Energy/Tempo",
+      "text": "High energy electronic music for workout video"
+    }
+  ],
+  "search_tips": [
+    {
+      "bad": "rap song",
+      "good": "music with rapping vocal",
+      "reason": "Describe the sound characteristics"
+    },
+    {
+      "bad": "horror song",
+      "good": "scary horror music with tense strings",
+      "reason": "Add descriptive details about the mood"
+    },
+    {
+      "bad": "storm",
+      "good": "sound of thunder and heavy rain storm",
+      "reason": "Be specific about what sounds you want"
     }
   ]
 }

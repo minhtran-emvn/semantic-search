@@ -15,9 +15,11 @@ from app.api.models import (
     HealthResponse,
     SearchRequest,
     SearchResponse,
+    SearchTip,
 )
 from app.core.clap_service import CLAPService
 from app.core.content_type_detector import ContentTypeDetector
+from app.core.query_processor import QueryProcessor, average_embeddings
 from app.core.search_service import SearchService
 from app.core.translation_service import TranslationService
 
@@ -41,12 +43,20 @@ def get_content_type_detector(request: Request) -> ContentTypeDetector:
     return request.app.state.content_type_detector
 
 
-def _load_example_prompts() -> list[ExamplePrompt]:
+def get_query_processor(request: Request) -> QueryProcessor:
+    return request.app.state.query_processor
+
+
+def _load_example_prompts() -> tuple[list[ExamplePrompt], list[SearchTip]]:
     config_path = Path(__file__).resolve().parents[2] / "config" / "example_prompts.json"
     with config_path.open("r", encoding="utf-8") as file_handle:
         data = json.load(file_handle)
     prompts = data.get("prompts", [])
-    return [ExamplePrompt(**prompt) for prompt in prompts]
+    tips = data.get("search_tips", [])
+    return (
+        [ExamplePrompt(**prompt) for prompt in prompts],
+        [SearchTip(**tip) for tip in tips],
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -64,7 +74,7 @@ async def get_example_prompts(
     translation_service: TranslationService = Depends(get_translation_service),
 ) -> ExamplePromptsResponse:
     """Return example prompts, optionally localized."""
-    prompts = _load_example_prompts()
+    prompts, search_tips = _load_example_prompts()
 
     if lang and lang.lower() != "en":
         translated_prompts = []
@@ -84,7 +94,7 @@ async def get_example_prompts(
         except Exception as exc:
             logger.warning("Example prompt translation failed: %s", exc)
 
-    return ExamplePromptsResponse(prompts=prompts)
+    return ExamplePromptsResponse(prompts=prompts, search_tips=search_tips)
 
 @router.post("/search", response_model=SearchResponse)
 async def search_audio(
@@ -93,6 +103,7 @@ async def search_audio(
     content_type_detector: ContentTypeDetector = Depends(get_content_type_detector),
     clap_service: CLAPService = Depends(get_clap_service),
     search_service: SearchService = Depends(get_search_service),
+    query_processor: QueryProcessor = Depends(get_query_processor),
 ) -> SearchResponse:
     """Search endpoint for semantic audio matching."""
     try:
@@ -108,10 +119,31 @@ async def search_audio(
             detection = content_type_detector.detect(english_text)
             content_type = detection.type
 
-        text_embedding = clap_service.get_text_embedding_for_content_type(
-            english_text,
-            content_type,
-        )
+        # Process query with synonym expansion and prompt templates
+        query_result = query_processor.process_query(english_text, content_type)
+
+        if query_result.synonyms_applied:
+            logger.info(
+                "Synonyms applied: %s", ", ".join(query_result.synonyms_applied)
+            )
+
+        # Generate embeddings for all prompt variants and average them
+        if len(query_result.prompt_variants) > 1:
+            embeddings = clap_service.get_multi_text_embeddings(
+                query_result.prompt_variants,
+                content_type,
+            )
+            text_embedding = average_embeddings(embeddings)
+            logger.info(
+                "Averaged %d prompt variant embeddings for query",
+                len(embeddings),
+            )
+        else:
+            text_embedding = clap_service.get_text_embedding_for_content_type(
+                query_result.expanded_query,
+                content_type,
+            )
+
         results = search_service.search_by_content_type(
             text_embedding,
             content_type,
@@ -124,15 +156,24 @@ async def search_audio(
             detail="Search service failure",
         ) from exc
 
-    audio_results = [
-        AudioResult(
-            filename=result.filename,
-            similarity=result.similarity,
-            audio_url=result.audio_url,
-            content_type=content_type,
+    audio_results = []
+    for result in results:
+        # Extract folder path from audio_url (e.g., "/audio/subfolder/file.mp3" -> "subfolder")
+        folder = ""
+        if result.audio_url.startswith("/audio/"):
+            path_parts = result.audio_url[7:].rsplit("/", 1)  # Remove "/audio/" prefix
+            if len(path_parts) > 1:
+                folder = path_parts[0]  # Parent folder(s)
+
+        audio_results.append(
+            AudioResult(
+                filename=result.filename,
+                similarity=result.similarity,
+                audio_url=result.audio_url,
+                content_type=content_type,
+                folder=folder,
+            )
         )
-        for result in results
-    ]
 
     return SearchResponse(
         results=audio_results,

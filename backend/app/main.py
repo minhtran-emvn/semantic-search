@@ -20,6 +20,7 @@ from app.api.routes import router
 from app.core.config import settings
 from app.core.clap_service import CLAPService
 from app.core.content_type_detector import ContentTypeDetector
+from app.core.query_processor import QueryProcessor
 from app.core.search_service import SearchService
 from app.core.translation_service import TranslationService
 
@@ -84,6 +85,10 @@ async def lifespan(app: FastAPI):
             content_type_detector = ContentTypeDetector(
                 keywords_config_path=str(keywords_path)
             )
+            query_processor = QueryProcessor(
+                enable_synonyms=True,
+                enable_templates=True,
+            )
         except Exception:
             logger.exception("Failed to initialize translation or detection services")
             raise
@@ -92,6 +97,7 @@ async def lifespan(app: FastAPI):
         app.state.search_service = search_service
         app.state.translation_service = translation_service
         app.state.content_type_detector = content_type_detector
+        app.state.query_processor = query_processor
 
         logger.info("Application startup: services initialized")
     except Exception:

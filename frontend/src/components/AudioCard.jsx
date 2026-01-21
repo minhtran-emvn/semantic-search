@@ -38,9 +38,16 @@ function AudioCard({ result }) {
             <h3 className="font-large-bold text-text-100 truncate">
               {result.filename}
             </h3>
-            <p className="mt-1 font-small-bold uppercase tracking-[0.18em] text-text-400">
-              {contentTypeLabel}
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="font-small-bold uppercase tracking-[0.18em] text-text-400">
+                {contentTypeLabel}
+              </span>
+              {result.folder && (
+                <span className="text-xs text-text-500 truncate max-w-[150px]" title={result.folder}>
+                  📁 {result.folder}
+                </span>
+              )}
+            </div>
           </div>
           <span
             className={`rounded-full px-3 py-1 text-[0.7rem] font-semibold md:hidden ${similarityBadge.className}`}
@@ -81,7 +88,8 @@ AudioCard.propTypes = {
     filename: PropTypes.string.isRequired,
     similarity: PropTypes.number.isRequired,
     audio_url: PropTypes.string.isRequired,
-    content_type: PropTypes.oneOf(['song', 'sfx']).isRequired
+    content_type: PropTypes.oneOf(['song', 'sfx']).isRequired,
+    folder: PropTypes.string
   }).isRequired
 };
 

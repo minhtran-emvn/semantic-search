@@ -116,7 +116,7 @@ class Settings(BaseSettings):
 
     # Search configuration
     DEFAULT_TOP_K: int = Field(
-        default=5,
+        default=10,
         description="Default number of search results to return",
         ge=1
     )

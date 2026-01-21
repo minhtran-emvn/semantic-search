@@ -244,11 +244,30 @@ class TranslationService:
                 was_translated=False,
             )
 
+        # Check if text contains non-ASCII characters (likely non-English)
+        has_non_ascii = self._contains_non_ascii_letters(trimmed)
+        force_translation = has_non_ascii
+
         detection_text = self._extract_dominant_text(trimmed)
         detection = await self.detect_language(detection_text)
         lang_code = detection.lang_code or "en"
 
-        if detection.is_english:
+        # Override language detection if text has non-ASCII letters but was detected as English
+        # This handles cases like short Vietnamese queries ("bão") being misdetected
+        if force_translation and detection.is_english:
+            # Try to infer language from character ranges
+            inferred_lang = self._infer_language_from_characters(trimmed)
+            if inferred_lang:
+                lang_code = inferred_lang
+                logger.info(
+                    "Overriding language detection: detected=%s, inferred=%s for text: %s",
+                    detection.lang_code,
+                    inferred_lang,
+                    trimmed[:50],
+                )
+
+        # Skip translation only if truly English (no non-ASCII letters)
+        if detection.is_english and not force_translation:
             return ProcessedQuery(
                 english_text=original_text,
                 original_text=original_text,
@@ -413,6 +432,68 @@ class TranslationService:
         if not stripped:
             return True
         return not any(char.isalnum() for char in stripped)
+
+    def _contains_non_ascii_letters(self, text: str) -> bool:
+        """Check if text contains non-ASCII alphabetic characters."""
+        return any(char.isalpha() and not char.isascii() for char in text)
+
+    def _infer_language_from_characters(self, text: str) -> Optional[str]:
+        """
+        Infer language from Unicode character ranges.
+
+        Returns language code if confidently inferred, None otherwise.
+        Focuses on Vietnamese and other common non-ASCII languages.
+        """
+        # Vietnamese-specific diacritics and characters
+        vietnamese_lower = "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ"
+        vietnamese_upper = "".join(c.upper() if c != "đ" else "Đ" for c in vietnamese_lower)
+        vietnamese_chars = set(vietnamese_lower + vietnamese_upper)
+
+        # Chinese character ranges (CJK Unified Ideographs)
+        def is_chinese(char: str) -> bool:
+            code = ord(char)
+            return (0x4E00 <= code <= 0x9FFF or  # CJK Unified Ideographs
+                    0x3400 <= code <= 0x4DBF or  # CJK Extension A
+                    0x20000 <= code <= 0x2A6DF)  # CJK Extension B
+
+        # Japanese Hiragana and Katakana
+        def is_japanese_kana(char: str) -> bool:
+            code = ord(char)
+            return (0x3040 <= code <= 0x309F or  # Hiragana
+                    0x30A0 <= code <= 0x30FF)    # Katakana
+
+        # Korean Hangul
+        def is_korean(char: str) -> bool:
+            code = ord(char)
+            return (0xAC00 <= code <= 0xD7AF or  # Hangul Syllables
+                    0x1100 <= code <= 0x11FF)    # Hangul Jamo
+
+        # Thai
+        def is_thai(char: str) -> bool:
+            code = ord(char)
+            return 0x0E00 <= code <= 0x0E7F
+
+        # Count character types
+        viet_count = sum(1 for c in text if c in vietnamese_chars)
+        chinese_count = sum(1 for c in text if is_chinese(c))
+        japanese_count = sum(1 for c in text if is_japanese_kana(c))
+        korean_count = sum(1 for c in text if is_korean(c))
+        thai_count = sum(1 for c in text if is_thai(c))
+
+        counts = {
+            "vi": viet_count,
+            "zh": chinese_count,
+            "ja": japanese_count + chinese_count // 2,  # Japanese often uses kanji
+            "ko": korean_count,
+            "th": thai_count,
+        }
+
+        # Return the language with the most characteristic characters
+        max_lang, max_count = max(counts.items(), key=lambda x: x[1])
+        if max_count > 0:
+            return max_lang
+
+        return None
 
     def _extract_dominant_text(self, text: str) -> str:
         ascii_letters = [char for char in text if char.isascii() and char.isalpha()]
