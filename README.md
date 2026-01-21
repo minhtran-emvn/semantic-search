@@ -1,7 +1,5 @@
 # SemanticSearch
 
-<<<<<<< HEAD
-=======
 ## Multilingual Search
 
 Prompt Search accepts natural language queries and translates Vietnamese to English before embedding generation. If translation is unavailable, the system falls back to the original text with a warning so searches still complete.
@@ -43,7 +41,6 @@ Result cards display similarity scores with match tiers:
 - 60-74%: Fair Match (yellow)
 - Below 60%: Low Match (gray)
 
->>>>>>> feat-song-search
 ## Development
 
 #### Backend (terminal 1):

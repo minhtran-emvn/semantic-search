@@ -10,13 +10,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-<<<<<<< HEAD
-      - audio-data:/data/audio
-      - embeddings-data:/data/embeddings
-=======
       - ./backend/data/audio:/data/audio
       - ./backend/data/embeddings:/data/embeddings
->>>>>>> feat-song-search
     environment:
       - AUDIO_DIR=/data/audio
       - EMBEDDINGS_DIR=/data/embeddings
@@ -31,11 +26,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-<<<<<<< HEAD
-      start_period: 60s
-=======
       start_period: 600s
->>>>>>> feat-song-search
     networks:
       - semantic-network
 
