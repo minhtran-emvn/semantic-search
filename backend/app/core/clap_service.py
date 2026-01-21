@@ -6,11 +6,14 @@ model with intelligent device detection and management.
 """
 
 import logging
+import re
 from typing import List, Optional
 
 import numpy as np
 import torch
 from laion_clap import CLAP_Module
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +34,29 @@ class CLAPService:
             device: Optional device override ('cuda', 'mps', 'cpu', or None for auto-detection)
         """
         self.model: Optional[CLAP_Module] = None
+        self.music_model: Optional[CLAP_Module] = None
+        self.current_gpu_model: Optional[str] = None
         self.device: str = self._get_device(device)
+        self.device_memory: float = self._check_gpu_memory()
 
         logger.info(f"CLAP service initialized with device: {self.device}")
+
+    _SONG_TEMPLATES = (
+        "This is a {query} song",
+        "This music features {query}",
+    )
+    _SFX_TEMPLATES = (
+        "This is a sound of {query}",
+        "Sound effect of {query}",
+    )
+    _SONG_STRIP_TERMS = ("song", "music", "track")
+    _SFX_STRIP_TERMS = ("sound effect", "sound", "sfx")
+    _SYNONYM_MAP = {
+        "rap": ["hip hop", "hip-hop", "hiphop"],
+        "hip hop": ["rap", "hip-hop", "hiphop"],
+        "hip-hop": ["rap", "hip hop", "hiphop"],
+        "storm": ["thunder", "wind", "rain"],
+    }
 
     def _get_device(self, device_override: Optional[str] = None) -> str:
         """
@@ -65,7 +88,29 @@ class CLAPService:
         logger.info("No GPU detected - using CPU")
         return "cpu"
 
-    def load_model(self, enable_fusion: bool = False) -> None:
+    def _check_gpu_memory(self) -> float:
+        """
+        Detect available GPU memory in GB.
+
+        _Requirements: 6.1_
+        """
+        if self.device != "cuda" or not torch.cuda.is_available():
+            return 0.0
+
+        try:
+            properties = torch.cuda.get_device_properties(0)
+            total_gb = properties.total_memory / (1024 ** 3)
+            logger.info("Detected GPU memory: %.2f GB", total_gb)
+            return total_gb
+        except Exception as exc:
+            logger.warning("Failed to detect GPU memory: %s", exc)
+            return 0.0
+
+    def load_model(
+        self,
+        enable_fusion: bool = False,
+        checkpoint_path: Optional[str] = None,
+    ) -> None:
         """
         Load CLAP model with automatic checkpoint download.
 
@@ -73,10 +118,11 @@ class CLAPService:
         - Audio model: HTSAT-tiny
         - Text model: roberta
         - Enable fusion: False by default (optimized for <10 sec audio)
-        - Checkpoint: 630k-audioset-best.pt (auto-downloaded from HuggingFace)
+        - Checkpoint: CLAP default checkpoint (fusion uses 630k-audioset-fusion-best.pt)
 
         Args:
             enable_fusion: Whether to enable fusion mode (use True for audio >10 seconds)
+            checkpoint_path: Optional checkpoint path override
 
         Raises:
             RuntimeError: If model initialization fails after 3 retry attempts
@@ -101,7 +147,10 @@ class CLAPService:
 
                 # Load checkpoint (auto-downloads 630k-audioset-best.pt if not present)
                 logger.info("Loading checkpoint (will auto-download if not present)...")
-                self.model.load_ckpt()
+                if checkpoint_path:
+                    self.model.load_ckpt(ckpt=checkpoint_path)
+                else:
+                    self.model.load_ckpt()
 
                 logger.info("CLAP model loaded successfully")
                 return
@@ -127,6 +176,255 @@ class CLAPService:
         )
         logger.error(error_msg)
         raise RuntimeError(error_msg) from last_exception
+
+    def load_music_model(self, checkpoint_path: Optional[str] = None) -> None:
+        """
+        Load music-optimized CLAP model checkpoint.
+
+        _Requirements: 6.1, 6.2, 6.5_
+        """
+        max_retries = 3
+        last_exception = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                load_device = self.device
+                if self.device == "cuda" and self.device_memory < 4.0:
+                    load_device = "cpu"
+
+                logger.info(
+                    "Loading music CLAP model (attempt %d/%d) - device: %s",
+                    attempt,
+                    max_retries,
+                    load_device,
+                )
+
+                self.music_model = CLAP_Module(
+                    device=load_device,
+                    enable_fusion=False,
+                    amodel="HTSAT-base",
+                    tmodel="roberta",
+                )
+
+                resolved_checkpoint = checkpoint_path or settings.MUSIC_CHECKPOINT_PATH
+                self.music_model.load_ckpt(ckpt=resolved_checkpoint)
+
+                logger.info("Music CLAP model loaded successfully")
+                return
+            except Exception as exc:
+                last_exception = exc
+                logger.error(
+                    "Failed to load music CLAP model (attempt %d/%d): %s",
+                    attempt,
+                    max_retries,
+                    exc,
+                    exc_info=True,
+                )
+                self.music_model = None
+
+                if attempt < max_retries:
+                    logger.info("Retrying music model load...")
+
+        error_msg = (
+            f"Failed to load music CLAP model after {max_retries} attempts. "
+            f"Last error: {str(last_exception)}"
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg) from last_exception
+
+    def _swap_models_if_needed(self, target_content_type: str) -> None:
+        """
+        Swap CLAP models between GPU and CPU based on memory constraints.
+
+        _Requirements: 6.1_
+        """
+        if self.device != "cuda":
+            return
+
+        if self.device_memory >= 4.0:
+            self.current_gpu_model = target_content_type
+            return
+
+        if self.current_gpu_model == target_content_type:
+            return
+
+        if target_content_type == "song":
+            active_model = self.music_model
+            inactive_model = self.model
+        else:
+            active_model = self.model
+            inactive_model = self.music_model
+
+        self._move_model_to_device(inactive_model, "cpu")
+        self._move_model_to_device(active_model, "cuda")
+        self.current_gpu_model = target_content_type
+
+    def _move_model_to_device(self, model: Optional[CLAP_Module], device: str) -> None:
+        if model is None:
+            return
+
+        if hasattr(model, "model") and hasattr(model.model, "to"):
+            model.model.to(device)
+            return
+
+        if hasattr(model, "to"):
+            model.to(device)
+            return
+
+        logger.warning("CLAP model does not support device transfer.")
+
+    def get_text_embedding_for_content_type(self, text: str, content_type: str) -> np.ndarray:
+        """
+        Generate text embedding using the model for the specified content type.
+
+        _Requirements: 6.3, 6.4_
+        """
+        normalized_type = content_type.lower()
+        if normalized_type not in {"song", "sfx"}:
+            raise ValueError(f"Unsupported content type: {content_type}")
+
+        selected_model = self.model
+        target_type = "sfx"
+
+        if normalized_type == "song" and self.music_model is not None:
+            selected_model = self.music_model
+            target_type = "song"
+
+        if selected_model is None:
+            error_msg = "CLAP model is not loaded. Call load_model() first."
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        self._swap_models_if_needed(target_type)
+
+        prompts = self._build_prompt_variants(text, target_type)
+
+        logger.debug(
+            "Generating text embedding for content_type=%s prompts=%d query: %s...",
+            target_type,
+            len(prompts),
+            text[:100],
+        )
+
+        embedding = selected_model.get_text_embedding(prompts, use_tensor=False)
+        embedding = np.array(embedding)
+        if embedding.ndim == 1:
+            return embedding
+
+        embedding = embedding.mean(axis=0)
+
+        logger.debug(
+            "Text embedding generated - shape: %s, dtype: %s",
+            embedding.shape,
+            embedding.dtype,
+        )
+
+        return embedding
+
+    def _build_prompt_variants(self, text: str, content_type: str) -> List[str]:
+        cleaned = self._strip_query_terms(text, content_type)
+        variants = self._expand_query_variants(cleaned)
+        templates = self._SONG_TEMPLATES if content_type == "song" else self._SFX_TEMPLATES
+
+        prompts: List[str] = []
+        seen = set()
+        for variant in variants:
+            for template in templates:
+                prompt = template.format(query=variant).strip()
+                key = prompt.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                prompts.append(prompt)
+
+        return prompts or [text]
+
+    def _strip_query_terms(self, text: str, content_type: str) -> str:
+        if content_type == "song":
+            terms = self._SONG_STRIP_TERMS
+        else:
+            terms = self._SFX_STRIP_TERMS
+        pattern = r"\b(" + "|".join(re.escape(term) for term in terms) + r")\b"
+        cleaned = re.sub(pattern, " ", text, flags=re.IGNORECASE)
+        cleaned = " ".join(cleaned.split())
+        return cleaned if cleaned else text
+
+    def _expand_query_variants(self, text: str) -> List[str]:
+        variants: List[str] = []
+        seen = set()
+
+        def add_variant(value: str) -> None:
+            trimmed = value.strip()
+            if not trimmed:
+                return
+            key = trimmed.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            variants.append(trimmed)
+
+        add_variant(text)
+        lowered = text.lower()
+
+        for key, replacements in self._SYNONYM_MAP.items():
+            if key not in lowered:
+                continue
+            pattern = re.compile(r"\b" + re.escape(key) + r"\b", flags=re.IGNORECASE)
+            for replacement in replacements:
+                add_variant(pattern.sub(replacement, text))
+
+        return variants
+
+    def get_multi_text_embeddings(
+        self, texts: List[str], content_type: str
+    ) -> List[np.ndarray]:
+        """
+        Generate embeddings for multiple text prompts.
+
+        Args:
+            texts: List of text prompts to embed
+            content_type: Either "song" or "sfx"
+
+        Returns:
+            List of embedding arrays, one per input text
+        """
+        normalized_type = content_type.lower()
+        if normalized_type not in {"song", "sfx"}:
+            raise ValueError(f"Unsupported content type: {content_type}")
+
+        selected_model = self.model
+        target_type = "sfx"
+
+        if normalized_type == "song" and self.music_model is not None:
+            selected_model = self.music_model
+            target_type = "song"
+
+        if selected_model is None:
+            error_msg = "CLAP model is not loaded. Call load_model() first."
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        self._swap_models_if_needed(target_type)
+
+        logger.debug(
+            "Generating %d text embeddings for content_type=%s",
+            len(texts),
+            target_type,
+        )
+
+        # Get embeddings for all texts in a single batch
+        embeddings = selected_model.get_text_embedding(texts, use_tensor=False)
+
+        # Split into list of individual embeddings
+        result = [embeddings[i] for i in range(embeddings.shape[0])]
+
+        logger.debug(
+            "Generated %d embeddings - shape: %s each",
+            len(result),
+            result[0].shape if result else "N/A",
+        )
+
+        return result
 
     def get_text_embedding(self, text: str) -> np.ndarray:
         """

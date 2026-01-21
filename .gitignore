@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Ignore .claude directory except specific reviewer agents
+=======
+Ignore .claude directory except specific reviewer agents
+>>>>>>> feat-song-search
 .claude/**
 !.claude/
 !.claude/agents/
@@ -17,10 +21,21 @@
 .tmp/
 deployment/nginx/*.conf.bak
 *.tar.gz
+<<<<<<< HEAD
+=======
+__pycache__/
+*.py[cod]
+*$py.class
+>>>>>>> feat-song-search
 backend/data/audio/*
 backend/data/embeddings/*
 !backend/data/audio/
 !backend/data/embeddings/
 !backend/data/audio/.gitkeep
 !backend/data/embeddings/.gitkeep
+<<<<<<< HEAD
 DEPLOYMENT.md
+=======
+DEPLOYMENT.md
+630k-audioset-fusion-best.ptgk2hl0yx.tmp
+>>>>>>> feat-song-search
