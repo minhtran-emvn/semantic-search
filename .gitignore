@@ -1,4 +1,4 @@
-# Ignore .claude directory except specific reviewer agents
+Ignore .claude directory except specific reviewer agents
 .claude/**
 !.claude/
 !.claude/agents/

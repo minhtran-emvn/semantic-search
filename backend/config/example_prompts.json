@@ -1,0 +1,20 @@
+{
+  "prompts": [
+    {
+      "category": "Mood/Emotion",
+      "text": "Melancholic piano piece for a rainy day scene"
+    },
+    {
+      "category": "Genre/Style",
+      "text": "Upbeat electronic instrumental for a tech product demo"
+    },
+    {
+      "category": "Use-Case",
+      "text": "Background music for a cooking tutorial, light and cheerful"
+    },
+    {
+      "category": "Sound Effects",
+      "text": "Subtle nature ambience with birds chirping"
+    }
+  ]
+}

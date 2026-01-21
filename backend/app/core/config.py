@@ -7,7 +7,7 @@ All settings can be overridden via environment variables.
 
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,6 +43,59 @@ class Settings(BaseSettings):
     CLAP_DEVICE: str = Field(
         default="auto",
         description="Device for CLAP model: 'auto', 'cuda', or 'cpu'. Auto detects GPU availability."
+    )
+
+    CLAP_ENABLE_FUSION: bool = Field(
+        default=False,
+        description="Enable CLAP fusion model for variable-length audio."
+    )
+
+    CLAP_CHECKPOINT_PATH: Optional[str] = Field(
+        default=None,
+        description="Optional checkpoint path override for the general CLAP model."
+    )
+
+    MUSIC_MODEL_ENABLED: bool = Field(
+        default=True,
+        description="Whether to initialize the music-specific CLAP model."
+    )
+
+    CONTENT_RERANK_ENABLED: bool = Field(
+        default=True,
+        description="Enable content-type reranking for mixed audio datasets."
+    )
+
+    CONTENT_RERANK_WEIGHT: float = Field(
+        default=0.35,
+        description="Weight for content-type reranking (0.0-1.0).",
+        ge=0.0,
+        le=1.0,
+    )
+
+    MUSIC_CHECKPOINT_PATH: str = Field(
+        default="music_audioset_epoch_15_esc_90.14.pt",
+        description="Checkpoint path for music-optimized CLAP model"
+    )
+
+    MUSIC_EMBEDDINGS_DIR: Path = Field(
+        default=Path("data/embeddings/music"),
+        description="Directory to store music embeddings"
+    )
+
+    # Translation service configuration
+    TRANSLATION_SERVICE_PROVIDER: str = Field(
+        default="libretranslate",
+        description="Translation provider: 'google', 'libretranslate', or 'deepl'"
+    )
+
+    TRANSLATION_API_KEY: Optional[str] = Field(
+        default=None,
+        description="API key for translation provider"
+    )
+
+    TRANSLATION_API_URL: Optional[str] = Field(
+        default=None,
+        description="Custom translation API URL for self-hosted providers"
     )
 
     # API server configuration
@@ -88,6 +141,11 @@ class Settings(BaseSettings):
         # Create directories if they don't exist
         self.AUDIO_DIR.mkdir(parents=True, exist_ok=True)
         self.EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+        if not self.MUSIC_EMBEDDINGS_DIR.is_absolute():
+            self.MUSIC_EMBEDDINGS_DIR = Path(os.getcwd()) / self.MUSIC_EMBEDDINGS_DIR
+
+        self.MUSIC_EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Global settings instance

@@ -1,14 +1,38 @@
+import { useState } from 'react';
+
+import ContentTypeFilter from './components/ContentTypeFilter';
+import ExamplePrompts from './components/ExamplePrompts';
 import SearchBar from './components/SearchBar';
 import ResultsGrid from './components/ResultsGrid';
 import useSearch from './hooks/useSearch';
 import { DEFAULT_TOP_K } from './config';
 
 function App() {
-  const { results, isLoading, error, performSearch } = useSearch();
+  const {
+    results,
+    isLoading,
+    isTranslating,
+    error,
+    translationWarning,
+    contentType,
+    hasManualOverride,
+    performSearch,
+    toggleContentType,
+    resetContentType
+  } = useSearch();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const handleSearch = (query) => {
     performSearch(query, DEFAULT_TOP_K);
   };
+
+  const handleSelectPrompt = (promptText) => {
+    setSearchQuery(promptText);
+    performSearch(promptText, DEFAULT_TOP_K);
+  };
+
+  const showExamples = searchQuery.trim().length === 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-bg-100 via-bg-100 to-bg-200 text-text-100">
@@ -26,7 +50,29 @@ function App() {
           </p>
         </header>
 
-        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+        <SearchBar
+          onSearch={handleSearch}
+          isLoading={isLoading}
+          isTranslating={isTranslating}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onFocusChange={setIsSearchFocused}
+        />
+
+        <ExamplePrompts
+          onSelectPrompt={handleSelectPrompt}
+          isVisible={showExamples || isSearchFocused}
+        />
+
+        <div className="mt-6 w-full max-w-3xl">
+          <ContentTypeFilter
+            contentType={contentType}
+            onToggle={toggleContentType}
+            onAuto={resetContentType}
+            isManual={hasManualOverride}
+            isLoading={isLoading}
+          />
+        </div>
 
         {error && (
           <p className="mt-8 text-center font-base-bold text-danger-100">
@@ -35,6 +81,11 @@ function App() {
         )}
 
         <div className="mt-10 w-full">
+          {translationWarning && (
+            <div className="mb-4 rounded-[0.75rem] border border-warning-200/40 bg-warning-900 px-4 py-3 text-sm text-warning-100">
+              {translationWarning}
+            </div>
+          )}
           <ResultsGrid results={results} isLoading={isLoading} />
         </div>
       </div>

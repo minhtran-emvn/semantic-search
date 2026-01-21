@@ -1,6 +1,13 @@
 version: '3.8'
 
 services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    restart: unless-stopped
+    networks:
+      - semantic-network
+
   backend:
     build:
       context: ./backend
@@ -10,8 +17,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - audio-data:/data/audio
-      - embeddings-data:/data/embeddings
+      - ./backend/data/audio:/data/audio
+      - ./backend/data/embeddings:/data/embeddings
     environment:
       - AUDIO_DIR=/data/audio
       - EMBEDDINGS_DIR=/data/embeddings
@@ -26,7 +33,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 600s
     networks:
       - semantic-network
 

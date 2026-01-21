@@ -6,12 +6,29 @@ import { API_BASE_URL } from '../config';
 function AudioCard({ result }) {
   const [playbackError, setPlaybackError] = useState(false);
 
-  const similarityPercentage = Number.isFinite(result.similarity)
-    ? (result.similarity * 100).toFixed(1)
-    : '0.0';
+  const similarityValue = Number.isFinite(result.similarity)
+    ? result.similarity
+    : 0;
+  const similarityPercentage = (similarityValue * 100).toFixed(1);
   const sourceUrl = result.audio_url?.startsWith('http')
     ? result.audio_url
     : `${API_BASE_URL}${result.audio_url}`;
+  const contentTypeLabel = result.content_type === 'sfx' ? '🔊 SFX' : '🎵 Song';
+
+  const getSimilarityBadge = (score) => {
+    if (score >= 0.9) {
+      return { label: 'Excellent Match', className: 'bg-success-900 text-success-100' };
+    }
+    if (score >= 0.75) {
+      return { label: 'Good Match', className: 'bg-accent-secondary-900 text-accent-secondary-100' };
+    }
+    if (score >= 0.6) {
+      return { label: 'Fair Match', className: 'bg-warning-900 text-warning-100' };
+    }
+    return { label: 'Low Match', className: 'bg-bg-200 text-text-300' };
+  };
+
+  const similarityBadge = getSimilarityBadge(similarityValue);
 
   return (
     <div className="px-5 py-4 transition duration-150 hover:bg-bg-200/60">
@@ -22,16 +39,20 @@ function AudioCard({ result }) {
               {result.filename}
             </h3>
             <p className="mt-1 font-small-bold uppercase tracking-[0.18em] text-text-400">
-              Audio Clip
+              {contentTypeLabel}
             </p>
           </div>
-          <span className="rounded-full bg-bg-200 px-3 py-1 text-[0.7rem] font-semibold text-text-300 md:hidden">
-            {similarityPercentage}%
+          <span
+            className={`rounded-full px-3 py-1 text-[0.7rem] font-semibold md:hidden ${similarityBadge.className}`}
+          >
+            {similarityBadge.label} · {similarityPercentage}%
           </span>
         </div>
         <div className="hidden md:flex md:w-[15%] md:justify-end">
-          <span className="rounded-full bg-bg-200 px-3 py-1 text-[0.7rem] font-semibold text-text-300">
-            {similarityPercentage}%
+          <span
+            className={`rounded-full px-3 py-1 text-[0.7rem] font-semibold ${similarityBadge.className}`}
+          >
+            {similarityBadge.label} · {similarityPercentage}%
           </span>
         </div>
         <div className="md:flex-1">
@@ -59,7 +80,8 @@ AudioCard.propTypes = {
   result: PropTypes.shape({
     filename: PropTypes.string.isRequired,
     similarity: PropTypes.number.isRequired,
-    audio_url: PropTypes.string.isRequired
+    audio_url: PropTypes.string.isRequired,
+    content_type: PropTypes.oneOf(['song', 'sfx']).isRequired
   }).isRequired
 };
 

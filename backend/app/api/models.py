@@ -6,7 +6,7 @@ for the Semantic Audio Search Engine.
 """
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Literal, Optional
 
 
 class SearchRequest(BaseModel):
@@ -28,6 +28,10 @@ class SearchRequest(BaseModel):
         le=100,
         description="Number of top results to return"
     )
+    content_type: Optional[Literal["song", "sfx"]] = Field(
+        default=None,
+        description="Optional manual content type override"
+    )
 
 
 class AudioResult(BaseModel):
@@ -46,6 +50,10 @@ class AudioResult(BaseModel):
         description="Similarity score (0.0-1.0)"
     )
     audio_url: str = Field(..., description="URL to access the audio file")
+    content_type: str = Field(
+        ...,
+        description="Content type for the audio result (song or sfx)"
+    )
 
 
 class SearchResponse(BaseModel):
@@ -62,6 +70,29 @@ class SearchResponse(BaseModel):
     )
     query: str = Field(..., description="Original search query")
     num_results: int = Field(..., description="Total number of results")
+    content_type: str = Field(..., description="Resolved content type for the search")
+    original_query: str = Field(..., description="Original user input (pre-translation)")
+    was_translated: bool = Field(..., description="Whether translation was applied")
+    translation_warning: Optional[str] = Field(
+        default=None,
+        description="Warning message when translation degrades"
+    )
+
+
+class ExamplePrompt(BaseModel):
+    """Example prompt model for UI suggestions."""
+
+    category: str = Field(..., description="Prompt category label")
+    text: str = Field(..., description="Example prompt text")
+
+
+class ExamplePromptsResponse(BaseModel):
+    """Response model for example prompts."""
+
+    prompts: List[ExamplePrompt] = Field(
+        ...,
+        description="List of example prompts grouped by category"
+    )
 
 
 class HealthResponse(BaseModel):
